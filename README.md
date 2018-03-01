@@ -1,4 +1,6 @@
 # Tacotron2
+![im](assets/tacotron2.png)
+
 NATURAL TTS SYNTHESIS BY CONDITIONING WAVENET ON MEL SPECTROGRAM
 PREDICTIONS
 https://arxiv.org/pdf/1712.05884.pdf
@@ -6,7 +8,6 @@ https://arxiv.org/pdf/1712.05884.pdf
 WaveNet: A Generative Model for Raw Audio
 
 https://arxiv.org/abs/1609.03499
-
 ## Setup
 
 2. install pytorch and torchvision:
