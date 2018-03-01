@@ -1,7 +1,6 @@
 librosa==0.5.1
 numpy==1.12.1
 tqdm==4.19.5
-torch==0.3.1.post2
 matplotlib==2.0.2
 pandas==0.20.1
 tensorboardX==1.1
