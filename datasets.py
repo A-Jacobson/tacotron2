@@ -4,6 +4,8 @@ import numpy as np
 import torch
 from audio import load_wav
 
+import hyperparams as hp
+
 
 class LJSpeechDataset(Dataset):
 
@@ -57,10 +59,10 @@ def collate_fn(batch):
 
 
 def pad_text(text, max_len):
-    return np.pad(text, (0, max_len - len(text)), mode='constant', constant_values=0)
+    return np.pad(text, (0, max_len - len(text)), mode='constant', constant_values=hp.padding_idx)
 
 
 def pad_spectrogram(S, max_len):
-    padded = np.ones((max_len, 80)) * -80
+    padded = np.zeros((max_len, 80))
     padded[:len(S), :] = S
     return padded
