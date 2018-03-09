@@ -107,8 +107,6 @@ class Decoder(nn.Module):
         self.num_layers = num_layers
         self.hidden_size = hidden_size
         self.prenet = PreNet(in_features=80, out_features=256)
-        # self.project_encoded = nn.Linear(256, 128, bias=False)
-        # self.project_query = nn.Linear(hidden_size, 128, bias=False)
         self.attention = LocationAttention(encoded_dim=256, query_dim=1024, attention_dim=128)
         self.rnn = nn.LSTM(input_size=256 + 256, hidden_size=hidden_size, num_layers=num_layers, dropout=0.1)
         self.spec_out = nn.Linear(in_features=1024 + 256, out_features=80)
@@ -178,3 +176,6 @@ class MelSpectrogramNet(nn.Module):
                                                    targets,
                                                    teacher_forcing_ratio)
         return outputs, stop_tokens, masks
+
+    def generate(self, text):
+        raise NotImplementedError()

@@ -20,18 +20,6 @@ def wav_to_spectrogram(wav, sample_rate=hp.sample_rate,
                        floor_freq=hp.floor_freq):
     """
     Converts a wav file to a transposed db scale mel spectrogram.
-    Args:
-        wav:
-        sample_rate:
-        fft_frame_size:
-        fft_hop_size:
-        num_mels:
-        min_freq:
-        max_freq:
-        floor_freq:
-
-    Returns:
-
     """
     n_fft = ms_to_frames(fft_frame_size, sample_rate)
     hop_length = ms_to_frames(fft_hop_size, sample_rate)

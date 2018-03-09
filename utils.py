@@ -9,9 +9,11 @@ from tqdm import tqdm
 from datasets import collate_fn
 from text import sequence_to_text
 from visualize import show_attention, show_spectrogram
+import hyperparams as hp
 
 
-def train(model, optimizer, dataset, num_epochs, batch_size=1, log_interval=50, device=1):
+def train(model, optimizer, scheduler, dataset, num_epochs, batch_size=1,
+          save_interval=50, exp_name='melnet', device=1):
     model.train()
     writer = SummaryWriter()
     loader = DataLoader(dataset, batch_size=batch_size,
@@ -37,13 +39,16 @@ def train(model, optimizer, dataset, num_epochs, batch_size=1, log_interval=50, 
             loss = spec_loss + stop_loss
             optimizer.zero_grad()
             loss.backward()
-            clip_grad_norm(model.parameters(), 10.0, norm_type=2)  # prevent exploding grads
+            clip_grad_norm(model.parameters(), hp.max_grad_norm, norm_type=2)  # prevent exploding grads
+            scheduler.step()
             optimizer.step()
             total_loss += loss.data[0]
             pbar.set_description(f'loss: {loss.data[0]:.4f}')
             writer.add_scalar('loss', loss.data[0], step)
-            if step % log_interval == 0:
-                torch.save(model.state_dict(), f'checkpoints/melnet_{step}.pt')
+            writer.add_scalar('lr', scheduler.lr, step)
+
+            if step % save_interval == 0:
+                torch.save(model.state_dict(), f'checkpoints/{exp_name}_{step}.pt')
 
                 # plot the first sample in the batch
                 attention_plot = show_attention(attention[0], return_array=True)

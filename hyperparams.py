@@ -17,12 +17,18 @@ floor_freq = 0.01  # reference freq for power to db conversion
 num_chars = len(chars) + 1
 padding_idx = 0
 embedding_dim = 512
-
-# Attention
-
 # Decoder
 max_iters = 50
 
-# train
+# training
 teacher_forcing_ratio = 1.0
+
+# SGDR
+cycle_length = 500
+min_lr = 1e-5
+max_lr = 1e-2
+weight_decay = 1e-6  # l2 reg
+
+max_grad_norm = 10.0
+
 # WavnetVocoder
