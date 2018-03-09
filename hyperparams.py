@@ -1,8 +1,8 @@
-
 # Text
 eos = '~'
 pad = '_'
 chars = pad + 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz!\'\"(),-.:;? ' + eos
+unk_idx = len(chars)
 
 # Audio
 sample_rate = 22050  # hz
@@ -14,7 +14,7 @@ max_freq = 7600  # hz
 floor_freq = 0.01  # reference freq for power to db conversion
 
 # Encoder
-num_chars = len(chars)
+num_chars = len(chars) + 1
 padding_idx = 0
 embedding_dim = 512
 
@@ -23,9 +23,6 @@ embedding_dim = 512
 # Decoder
 max_iters = 50
 
-
 # train
 teacher_forcing_ratio = 1.0
 # WavnetVocoder
-
-

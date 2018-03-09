@@ -4,3 +4,4 @@ checkpoints
 .idea
 __pycache__
 runs
+tests/__pycache__

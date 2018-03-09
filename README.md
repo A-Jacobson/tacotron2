@@ -6,26 +6,29 @@ PREDICTIONS
 https://arxiv.org/pdf/1712.05884.pdf
 
 WaveNet: A Generative Model for Raw Audio
+https://arxiv.org/abs/1609.03499
+
 ## Contents
 - Simple LJ Speech DataLoader
 - Mel Spectrogram Prediction network (text to Spectrogram)
 - [TODO] WaveNet Vocoder (Spectrogram to raw audio)
 
-https://arxiv.org/abs/1609.03499
+# Status
+- Spectrogram network is functional but not fully trained.
+The model takes ~3 hours per epoch on an M6000 gpu.
+
 
 ## Setup
 
-2. install pytorch and torchvision:
+1. install pytorch and torchvision:
 ```
 conda install pytorch -c pytorch
 ```
 
-3. install tensorflow and tensorboardX for logging.
+2. install other requirements:
 ```
-pip install tensorboard
-pip install tensorboardX
+pip install -r requirements.txt
 ```
-
 ## Usage
 train Spectrogram Prediction Network
 ```
