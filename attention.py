@@ -26,7 +26,7 @@ class LocationAttention(nn.Module):
         query_vector = self.W(query_vector)  # (seq, batch, atten_dim)
         attention_input = encoder_out + query_vector
         if isinstance(mask, Variable):
-            attention_input += self.f(mask)
+            attention_input += self.U(self.f(mask))
         return self.w(self.tanh(attention_input))
 
     def forward(self, query_vector, encoder_out, mask=None):

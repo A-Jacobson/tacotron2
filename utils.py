@@ -24,6 +24,8 @@ def train(model, optimizer, scheduler, dataset, num_epochs, batch_size=1,
     for _ in tqdm(range(num_epochs), total=num_epochs, unit=' epochs'):
         pbar = tqdm(loader, total=len(loader), unit=' batches')
         for b, (text_batch, audio_batch, text_lengths, audio_lengths) in enumerate(pbar):
+
+            # update loop
             text = Variable(text_batch).cuda(device)
             targets = Variable(audio_batch, requires_grad=False).cuda(device)
             stop_targets = make_stop_targets(targets, audio_lengths)
@@ -34,13 +36,14 @@ def train(model, optimizer, scheduler, dataset, num_epochs, batch_size=1,
             loss = spec_loss + stop_loss
             optimizer.zero_grad()
             loss.backward()
-            clip_grad_norm(model.parameters(), hp.max_grad_norm, norm_type=2)  # prevent exploding grads
+            # clip_grad_norm(model.parameters(), hp.max_grad_norm, norm_type=2)  # prevent exploding grads
             scheduler.step()
             optimizer.step()
+
+            # logging
             pbar.set_description(f'loss: {loss.data[0]:.4f}')
             writer.add_scalar('loss', loss.data[0], step)
             writer.add_scalar('lr', scheduler.lr, step)
-
             if step % save_interval == 0:
                 torch.save(model.state_dict(), f'checkpoints/{exp_name}_{str(step)}.pt')
 
@@ -52,7 +55,6 @@ def train(model, optimizer, scheduler, dataset, num_epochs, batch_size=1,
                 target_plot = show_spectrogram(targets.data.permute(1, 2, 0)[0],
                                                sequence_to_text(text.data[0]),
                                                return_array=True)
-
                 writer.add_image('attention', attention_plot, step)
                 writer.add_image('output', output_plot, step)
                 writer.add_image('target', target_plot, step)
