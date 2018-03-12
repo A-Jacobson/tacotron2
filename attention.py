@@ -14,7 +14,7 @@ class LocationAttention(nn.Module):
     def __init__(self, encoded_dim, query_dim, attention_dim, num_location_features=32):
         super(LocationAttention, self).__init__()
         self.f = nn.Conv1d(in_channels=1, out_channels=num_location_features,
-                           kernel_size=31, padding=15)
+                           kernel_size=31, padding=15, bias=False)
         self.U = nn.Linear(num_location_features, attention_dim)
         self.W = nn.Linear(query_dim, attention_dim)
         self.V = nn.Linear(encoded_dim, attention_dim)

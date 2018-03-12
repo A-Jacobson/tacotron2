@@ -1,7 +1,6 @@
-import random
-
 import torch
 from torch import nn
+from torch.autograd import Variable
 
 import hyperparams as hp
 from attention import LocationAttention
@@ -91,10 +90,10 @@ class Encoder(nn.Module):
         x = self.conv2(x)  # (4, 512, 156)
         x = self.conv3(x)  # (4, 512, 156)
         x = x.permute(2, 0, 1)  # swap seq, batch, dim for rnn | (156, 4, 512)
-        x, hidden = self.birnn(x)  # (156, 4, 512) | 256 dims in either direction
+        x, _ = self.birnn(x)  # (156, 4, 512) | 256 dims in either direction
         # sum bidirectional outputs
         x = (x[:, :, :256] + x[:, :, 256:])
-        return x, hidden
+        return x
 
 
 class Decoder(nn.Module):
@@ -102,14 +101,15 @@ class Decoder(nn.Module):
     Decodes encoder output and previous predicted spectrogram frame into next spectrogram frame.
     """
 
-    def __init__(self, hidden_size=1024, num_layers=2):
+    def __init__(self, hidden_size=1024, num_layers=2, num_mels=80):
         super(Decoder, self).__init__()
         self.num_layers = num_layers
         self.hidden_size = hidden_size
+        self.num_mels = num_mels
         self.prenet = PreNet(in_features=80, out_features=256)
         self.attention = LocationAttention(encoded_dim=256, query_dim=1024, attention_dim=128)
         self.rnn = nn.LSTM(input_size=256 + 256, hidden_size=hidden_size, num_layers=num_layers, dropout=0.1)
-        self.spec_out = nn.Linear(in_features=1024 + 256, out_features=80)
+        self.spec_out = nn.Linear(in_features=1024 + 256, out_features=num_mels)
         self.stop_out = nn.Linear(in_features=1024 + 256, out_features=1)
         self.postnet = PostNet()
 
@@ -117,7 +117,11 @@ class Decoder(nn.Module):
         return (nn.Parameter(torch.zeros(self.num_layers, batch_size, self.hidden_size)).cuda(),
                 nn.Parameter(torch.zeros(self.num_layers, batch_size, self.hidden_size)).cuda())
 
-    def _forward(self, previous_out, encoder_out, decoder_hidden=None, mask=None):
+    def init_mask(self, encoder_out):
+        seq1_len, batch_size, _ = encoder_out.size()
+        return Variable(encoder_out.data.new(batch_size, seq1_len, 1).fill_(0))
+
+    def forward(self, previous_out, encoder_out, decoder_hidden=None, mask=None):
         """
         Decodes a single frame
         """
@@ -132,36 +136,6 @@ class Decoder(nn.Module):
         spec_frame = spec_frame + self.postnet(spec_frame)  # add residual
         return spec_frame.permute(1, 0, 2), stop_token, decoder_hidden, mask
 
-    def forward(self, encoder_out, targets, teacher_forcing_ratio=0.5):
-        outputs = []
-        stop_tokens = []
-        masks = []
-
-        start_token = torch.zeros_like(targets[:1])
-        hidden = self.init_hidden(encoder_out.size(1))
-        output, stop_token, hidden, mask = self._forward(start_token,
-                                                         encoder_out, hidden)
-        for t in range(len(targets)):
-            output, stop, hidden, mask = self._forward(output.detach(),
-                                                       encoder_out,
-                                                       hidden,
-                                                       mask)
-            outputs.append(output)
-            stop_tokens.append(stop)
-            masks.append(mask.data)
-            teacher = random.random() < teacher_forcing_ratio
-            if teacher:
-                output = targets[t].unsqueeze(0)
-
-        outputs = torch.cat(outputs)
-        stop_tokens = torch.cat(stop_tokens)
-        masks = torch.cat(masks)  # seq2, batch, seq1
-
-        stop_tokens = stop_tokens.transpose(1, 0).squeeze()
-        if len(stop_tokens.size()) == 1:
-            stop_tokens = stop_tokens.unsqueeze(0)
-        return outputs, stop_tokens, masks.permute(1, 2, 0)  # batch, src, trg
-
 
 class MelSpectrogramNet(nn.Module):
 
@@ -170,12 +144,7 @@ class MelSpectrogramNet(nn.Module):
         self.encoder = Encoder(num_chars=hp.num_chars)
         self.decoder = Decoder()
 
-    def forward(self, text, targets, teacher_forcing_ratio=hp.teacher_forcing_ratio):
-        encoder_output, _ = self.encoder(text)
-        outputs, stop_tokens, masks = self.decoder(encoder_output,
-                                                   targets,
-                                                   teacher_forcing_ratio)
-        return outputs, stop_tokens, masks
-
-    def generate(self, text):
-        raise NotImplementedError()
+    def forward(self, text, decoding_helper):
+        encoder_output = self.encoder(text)
+        frames, stop_tokens, masks = decoding_helper(self.decoder, encoder_output)
+        return frames, stop_tokens, masks

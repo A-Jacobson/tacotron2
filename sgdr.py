@@ -33,9 +33,8 @@ class SGDRScheduler:
         self.current_step += 1
         self.calculate_lr()
         if self.current_step in range(self.warmup_steps):
-            adjust_lr(self.optimizer, self.lr / 10.0)  # warmup with lower lr
-        else:
-            adjust_lr(self.optimizer, self.lr)
+            self.lr /= 10.0  # take a few steps with a lower lr to "warmup"
+        adjust_lr(self.optimizer, self.lr)
 
 
 class LRFinderScheduler:

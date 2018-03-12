@@ -24,9 +24,9 @@ max_iters = 50
 teacher_forcing_ratio = 1.0
 
 # SGDR
-cycle_length = 500
+cycle_length = 2000
 min_lr = 1e-5
-max_lr = 1e-2
+max_lr = 1e-3
 weight_decay = 1e-6  # l2 reg
 
 max_grad_norm = 10.0
