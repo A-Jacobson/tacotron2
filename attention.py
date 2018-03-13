@@ -1,6 +1,5 @@
 import torch.nn.functional as F
 from torch import nn
-from torch.autograd import Variable
 
 
 class LocationAttention(nn.Module):
@@ -21,16 +20,16 @@ class LocationAttention(nn.Module):
         self.w = nn.Linear(attention_dim, 1, bias=False)
         self.tanh = nn.Tanh()
 
-    def score(self, query_vector, encoder_out, mask=None):
+    def score(self, query_vector, encoder_out, mask):
         encoder_out = self.V(encoder_out)  # (seq, batch, atten_dim) # project to attn dim
         query_vector = self.W(query_vector)  # (seq, batch, atten_dim)
-        attention_input = encoder_out + query_vector
-        if isinstance(mask, Variable):
-            attention_input += self.U(self.f(mask))
-        return self.w(self.tanh(attention_input))
+        attention_energies = encoder_out + query_vector
+        location_features = self.f(mask.permute(1, 0, 2))  # (batch, 1, seq1_len)
+        attention_energies += self.U(location_features.permute(2, 0, 1))  # (seq, batch, numfeats)
+        return self.w(self.tanh(attention_energies))
 
-    def forward(self, query_vector, encoder_out, mask=None):
-        energies = self.score(query_vector, encoder_out)
+    def forward(self, query_vector, encoder_out, mask):
+        energies = self.score(query_vector, encoder_out, mask)
         mask = F.softmax(energies, dim=0)
         context = encoder_out.permute(1, 2, 0) @ mask.permute(1, 0, 2)  # (batch, seq1, seq2)
         context = context.permute(2, 0, 1)  # (seq2, batch, encoder_dim)

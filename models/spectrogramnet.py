@@ -73,14 +73,14 @@ class PostNet(nn.Module):
 
 class Encoder(nn.Module):
 
-    def __init__(self, num_chars=hp.num_chars):
+    def __init__(self, num_chars=hp.num_chars, embedding_dim=512, hidden_size=256):
         super(Encoder, self).__init__()
         self.char_embedding = nn.Embedding(num_embeddings=num_chars,
-                                           embedding_dim=512, padding_idx=0)
-        self.conv1 = ConvBlock(512, 512, 5, 2)
-        self.conv2 = ConvBlock(512, 512, 5, 2)
-        self.conv3 = ConvBlock(512, 512, 5, 2)
-        self.birnn = nn.LSTM(input_size=512, hidden_size=256, bidirectional=True, dropout=0.1)
+                                           embedding_dim=embedding_dim, padding_idx=0)
+        self.conv1 = ConvBlock(in_channels=embedding_dim, out_channels=embedding_dim, kernel_size=5, padding=2)
+        self.conv2 = ConvBlock(in_channels=embedding_dim, out_channels=embedding_dim, kernel_size=5, padding=2)
+        self.conv3 = ConvBlock(in_channels=embedding_dim, out_channels=embedding_dim, kernel_size=5, padding=2)
+        self.birnn = nn.LSTM(input_size=embedding_dim, hidden_size=hidden_size, bidirectional=True, dropout=0.1) # TODO add soneout
 
     def forward(self, text):
         # input - (batch, maxseqlen) | (4, 156)
@@ -101,16 +101,18 @@ class Decoder(nn.Module):
     Decodes encoder output and previous predicted spectrogram frame into next spectrogram frame.
     """
 
-    def __init__(self, hidden_size=1024, num_layers=2, num_mels=80):
+    def __init__(self, hidden_size=1024, num_layers=2,
+                 num_mels=80, num_prenet_features=256):
         super(Decoder, self).__init__()
         self.num_layers = num_layers
         self.hidden_size = hidden_size
         self.num_mels = num_mels
-        self.prenet = PreNet(in_features=80, out_features=256)
-        self.attention = LocationAttention(encoded_dim=256, query_dim=1024, attention_dim=128)
-        self.rnn = nn.LSTM(input_size=256 + 256, hidden_size=hidden_size, num_layers=num_layers, dropout=0.1)
-        self.spec_out = nn.Linear(in_features=1024 + 256, out_features=num_mels)
-        self.stop_out = nn.Linear(in_features=1024 + 256, out_features=1)
+        
+        self.prenet = PreNet(in_features=num_mels, out_features=num_prenet_features)
+        self.attention = LocationAttention(encoded_dim=256, query_dim=hidden_size, attention_dim=128)
+        self.rnn = nn.LSTM(input_size=num_prenet_features + 256, hidden_size=hidden_size, num_layers=num_layers, dropout=0.1)
+        self.spec_out = nn.Linear(in_features=hidden_size + 256, out_features=num_mels)
+        self.stop_out = nn.Linear(in_features=hidden_size + 256, out_features=1)
         self.postnet = PostNet()
 
     def init_hidden(self, batch_size):
@@ -119,7 +121,7 @@ class Decoder(nn.Module):
 
     def init_mask(self, encoder_out):
         seq1_len, batch_size, _ = encoder_out.size()
-        return Variable(encoder_out.data.new(batch_size, seq1_len, 1).fill_(0))
+        return Variable(encoder_out.data.new(1, batch_size, seq1_len).fill_(0))
 
     def forward(self, previous_out, encoder_out, decoder_hidden=None, mask=None):
         """

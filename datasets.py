@@ -125,7 +125,7 @@ def pad1d(seq, max_len):
     return np.pad(seq, (0, max_len - len(seq)), mode='constant', constant_values=hp.padding_idx)
 
 
-def pad2d(seq, max_len, dim=80):
-    padded = np.zeros((max_len, dim))
+def pad2d(seq, max_len, dim=hp.num_mels, pad_value=hp.spectrogram_pad):
+    padded = np.zeros((max_len, dim)) + pad_value
     padded[:len(seq), :] = seq
     return padded

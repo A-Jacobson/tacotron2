@@ -10,6 +10,7 @@ class SGDRScheduler:
     """
     Implements STOCHASTIC GRADIENT DESCENT WITH WARM RESTARTS (SGDR)
     with cosine annealing from https://arxiv.org/pdf/1608.03983.pdf.
+    #TODO add cycle mult and min, max lr annealing.
     """
 
     def __init__(self, optimizer, min_lr, max_lr, cycle_length, warmup_steps=5, current_step=0):

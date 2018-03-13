@@ -44,5 +44,12 @@ tensorboard --logdir runs
 ![im](assets/tensorboard_loss.png)
 
 
+## Wavenet Resources
+
+https://r9y9.github.io/wavenet_vocoder/
+https://twitter.com/heiga_zen/status/832145314559750145
+http://musyoku.github.io/2016/09/18/wavenet-a-generative-model-for-raw-audio/
+https://www.slideshare.net/danilosoba1/generative-model-based-texttospeech
+
 
 

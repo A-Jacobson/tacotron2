@@ -57,11 +57,10 @@ class TacoGenerator:
         mask = decoder.init_mask(encoder_out)  # get initial mask
         hidden = decoder.init_hidden(batch_size)
         for t in range(self.maxlen):
-            output, stop_token, hidden, mask = decoder(output, encoder_out, hidden, mask)
+            output, stop_token, hidden, mask = decoder(output, encoder_out, hidden, mask.detach())
             outputs[t] = output
             stop_tokens[t] = stop_token
             masks[t] = mask.data
             if self.use_stop and F.sigmoid(stop_token) > 0.5:
                 break
-            # teacher forcing
         return outputs, stop_tokens.transpose(1, 0), masks.permute(1, 2, 0)  # batch, src, trg
