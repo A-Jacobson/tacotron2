@@ -1,12 +1,31 @@
 import torch
 import torch.nn.functional as F
 from torch import nn
+from torch.autograd import Variable
+
+
+class OneHot(nn.Module):
+    """
+    One hot encodes a categorical sequence
+    functions similar to an embedding layer
+    """
+
+    def __init__(self, num_categories=256):
+        super(OneHot, self).__init__()
+        self.num_categories = num_categories
+
+    def forward(self, indices):
+        indices = indices.data
+        batch_size, sequence_length = indices.size()
+        one_hot = indices.new(batch_size, self.num_categories, sequence_length).zero_()
+        one_hot.scatter_(1, indices.unsqueeze(dim=1), 1)
+        return Variable(one_hot.float())
 
 
 class CausalConv1d(nn.Module):
     """
-    pads the left side of input sequence so the
-    kernel does not look into the future.
+    pads the left side of input sequence just enough so that the convolutional kernel
+    does not look into the future.
 
     Input and output sizes will be the same.
     """
@@ -18,7 +37,7 @@ class CausalConv1d(nn.Module):
 
     def forward(self, x):
         x = self.conv1(x)
-        x = x[:, :, :-self.conv1.padding[0]]  # remove trailing padding
+        x = x[..., :-self.conv1.padding[0]]  # remove trailing padding
         return x
 
 
@@ -48,7 +67,7 @@ class ResidualLayer(nn.Module):
 
 
 class DilatedStack(nn.Module):
-    def __init__(self, residual_channels, skip_channels, num_dilations=10):
+    def __init__(self, residual_channels, skip_channels, dilation_depth=10):
         """
         Block of dilated residual layers
         Dilation increases exponentially, final dilation will be 2**num_layers.
@@ -56,7 +75,7 @@ class DilatedStack(nn.Module):
         """
         super(DilatedStack, self).__init__()
         residual_stack = [ResidualLayer(residual_channels, skip_channels, dilation=2 ** layer)
-                          for layer in range(num_dilations)]
+                          for layer in range(dilation_depth)]
         self.residual_stack = nn.ModuleList(residual_stack)
 
     def forward(self, x):
@@ -68,31 +87,38 @@ class DilatedStack(nn.Module):
 
 
 class WaveNet(nn.Module):
-    def __init__(self):
+    def __init__(self, residual_channels, skip_channels, dilation_cycles, dilation_depth):
         super(WaveNet, self).__init__()
-        self.embed = nn.Embedding(num_embeddings=256, embedding_dim=256)  # 1, 100, 32 #TODO change to 1hot or MoL
-        self.input_conv = CausalConv1d(in_channels=256, out_channels=512, kernel_size=2)
-        self.block1 = DilatedStack(residual_channels=512, skip_channels=256, num_dilations=10)
-        self.block2 = DilatedStack(residual_channels=512, skip_channels=256, num_dilations=10)
-        self.convout = nn.Conv1d(in_channels=256, out_channels=256, kernel_size=1)
+        self.one_hot_encode = OneHot(num_categories=256)
+        self.input_conv = CausalConv1d(in_channels=256, out_channels=residual_channels, kernel_size=2)
+
+        self.dilated_stacks = nn.ModuleList(
+            [DilatedStack(residual_channels, skip_channels, dilation_depth)
+             for cycle in range(dilation_cycles)]
+        )
+        self.convout_1 = nn.Conv1d(in_channels=256, out_channels=256, kernel_size=1)
+        self.convout_2 = nn.Conv1d(in_channels=256, out_channels=256, kernel_size=1)
 
     def forward(self, x):
-        x = self.embed(x)  # [1, 100, 32]
-        x = x.transpose(1, 2)  # [1, 32, 100]
-        x = self.input_conv(x)  # [1, 32, 100]
-        skips1, residual = self.block1(x)  # [5, 1, 16, 100] and [1, 32, 100]
-        skips2, _ = self.block2(residual)  # [5, 1, 16, 100] and [1, 32, 100]
-        skips = torch.cat([skips1, skips2], dim=0)  # [10, 1, 16, 100]
-        out = skips.sum(dim=0)  # [1, 16, 100]
+        x = self.one_hot_encode(x)  # [batch, num_mu, seq_len]
+        x = self.input_conv(x)  # [1, 256, 100] expects one_hot encoded inputs
+        skip_connections = []
+        for cycle in self.dilated_stacks:
+            skips, x = cycle(x)  # [5, 1, 16, 100] and [1, 32, 100]
+            skip_connections.append(skips)
+        skip_connections = torch.cat(skip_connections, dim=0)  # [10, 1, 16, 100]
+
+        # gather all output skip connections to generate output, discard last residual output
+        out = skip_connections.sum(dim=0)  # [1, 16, 100]
         out = F.relu(out)
-        out = self.convout(out)  # [1, 256, 100]
-        return out
+        out = self.convout_1(out)  # [1, 256, 100]
+        out = F.relu(out)
+        return self.convout_2(out)
 
     def generate(self, start, maxlen=100):
-        # Naive, original generation #TODO fast wavenet
         outputs = [start]
         for i in range(maxlen):
             probs = self.forward(torch.cat(outputs, dim=1))  # P(all_next|all previous)
             _, output = probs[..., -1:].max(dim=1)  # get prob for the last word and take max idx
             outputs.append(output)
-        return torch.cat(outputs[1:])
+        return torch.cat(outputs, dim=1)[..., start.size(dim=1):]

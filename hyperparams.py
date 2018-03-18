@@ -12,7 +12,7 @@ num_mels = 80  # filters
 min_freq = 125  # hz
 max_freq = 7600  # hz
 floor_freq = 0.01  # reference freq for power to db conversion
-spectrogram_pad = 0  # change to -80.0? (-80 is the mel value of a window of zeros in the time dim (wave))
+spectrogram_pad = -80.0  # change to -80.0? (-80 is the mel value of a window of zeros in the time dim (wave))
 
 # Encoder
 num_chars = len(chars) + 1

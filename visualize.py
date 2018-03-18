@@ -22,6 +22,7 @@ def show_spectrogram(spec, text=None, return_array=False):
         plt.close()
         buff.seek(0)
         return np.array(Image.open(buff))
+    plt.close()
 
 
 def show_audio(audio, text=None, return_array=False):
@@ -39,6 +40,7 @@ def show_audio(audio, text=None, return_array=False):
         plt.close()
         buff.seek(0)
         return np.array(Image.open(buff))
+    plt.close()
 
 
 def show_attention(attention, return_array=False):
@@ -55,5 +57,8 @@ def show_attention(attention, return_array=False):
         plt.tight_layout()
         buff = io.BytesIO()
         plt.savefig(buff, format='png')
+        plt.close()
         buff.seek(0)
         return np.array(Image.open(buff))
+    plt.close()
+

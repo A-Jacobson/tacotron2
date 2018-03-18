@@ -1,5 +1,6 @@
 import os
 
+import librosa
 import numpy as np
 import pandas as pd
 import torch
@@ -12,7 +13,7 @@ from audio import load_wav, wav_to_spectrogram
 
 class LJSpeechDataset(Dataset):
 
-    def __init__(self, path, text_transforms=None, audio_transforms=None, cache=False):
+    def __init__(self, path, text_transforms=None, audio_transforms=None, cache=False, sort=True):
         self.path = path
         self.metadata = pd.read_csv(f'{path}/metadata.csv', sep='|',
                                     names=['wav', 'transcription', 'text'],
@@ -21,6 +22,10 @@ class LJSpeechDataset(Dataset):
         self.audio_transforms = audio_transforms
         self.text_transforms = text_transforms
         self.cache = cache
+        if sort:
+            self.metadata['length'] = self.metadata['wav'].apply(
+                    lambda x: librosa.get_duration(filename=f'{path}/wavs/{x}.wav'))
+            self.metadata.sort_values(by=['length'], inplace=True)
         if cache:
             self.cache_spectrograms()
 
@@ -129,3 +134,39 @@ def pad2d(seq, max_len, dim=hp.num_mels, pad_value=hp.spectrogram_pad):
     padded = np.zeros((max_len, dim)) + pad_value
     padded[:len(seq), :] = seq
     return padded
+
+
+class RandomBatchSampler:
+    """Yields of mini-batch of indices, sequential within the batch, random between batches.
+    Incomplete last batch will appear randomly with this setup.
+    
+    Helpful for minimizing padding while retaining randomness with variable length inputs.
+    
+    Args:
+        sampler (Sampler): Base sampler.
+        batch_size (int): Size of mini-batch.
+
+
+    Example:
+        >>> list(RandomBatchSampler(range(10), 3))
+        [[0, 1, 2], [6, 7, 8], [3, 4, 5], [9]]
+    """
+
+    def __init__(self, sampler, batch_size):
+        self.sampler = sampler
+        self.batch_size = batch_size
+        self.random_batches = self.make_batches(sampler, batch_size)
+
+    def make_batches(self, sampler, batch_size):
+        indices = [i for i in sampler]
+        batches = [indices[i:i+batch_size]
+                   for i in range(0, len(indices), batch_size)]
+        random_indices = torch.randperm(len(batches)).long()
+        return [batches[i] for i in random_indices]
+
+    def __iter__(self):
+        for batch in self.random_batches:
+            yield batch
+
+    def __len__(self):
+        return len(self.random_batches)

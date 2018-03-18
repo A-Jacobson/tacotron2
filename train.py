@@ -6,11 +6,12 @@ from tensorboardX import SummaryWriter
 from torch.autograd import Variable
 from torch.optim import Adam
 from torch.utils.data import DataLoader
+from torch.utils.data.sampler import SequentialSampler
 from tqdm import tqdm
 
 import hyperparams as hp
 from audio import wav_to_spectrogram
-from datasets import LJSpeechDataset, collate_fn
+from datasets import LJSpeechDataset, collate_fn, RandomBatchSampler
 from decoding_helpers import TacoTeacher
 from models import MelSpectrogramNet
 from sgdr import SGDRScheduler, LRFinderScheduler
@@ -36,9 +37,11 @@ def train(model, optimizer, scheduler, dataset, num_epochs, batch_size=1,
           save_interval=50, exp_name='melnet', device=1, step=0):
     model.train()
     writer = SummaryWriter(f'runs/{exp_name}')
-    loader = DataLoader(dataset, batch_size=batch_size,
+    sampler = SequentialSampler(dataset)
+    batch_sampler = RandomBatchSampler(sampler, batch_size)
+    loader = DataLoader(dataset, batch_sampler=batch_sampler,
                         collate_fn=collate_fn, pin_memory=True,
-                        num_workers=6, shuffle=True)
+                        num_workers=6)
     tacoteacher = TacoTeacher()
     for _ in tqdm(range(num_epochs), total=num_epochs, unit=' epochs'):
         pbar = tqdm(loader, total=len(loader), unit=' batches')
